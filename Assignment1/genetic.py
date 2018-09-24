@@ -3,11 +3,13 @@
 import numpy as np
 import random
 
-INITIAL = 1000  # Number of the first generation
-RANGE = 10      # Random range
+INITIAL = 2000  # Number of the first generation
+RANGE = 1       # Random range
 LOOP = 10       # Rounds of creating new generations
 N = 10          # Length of feature map + 1 (x1, ..., xn) + threshold
 M = 49          # Length of training set
+
+SEED = 3
 
 DATA_ROOT = './training-set.csv'
 
@@ -15,7 +17,7 @@ DATA_ROOT = './training-set.csv'
     randomly generate a value between -10.0 and 10.0
 '''
 def get_rand_weight():
-    return random.random() * RANGE * random.uniform(-1.0, 1.0)
+    return random.uniform(-1.0 * RANGE, RANGE)
 
 '''
     initialize the first generation programs
@@ -88,10 +90,13 @@ def tournament_selection(curr_generation, X, labels):
     return target
 
 def crossover(w1, w2):
-    child = w1[:5] + w2[5:]
+    # child = w1[:5] + w2[5:]
+    index = random.randint(0, 10)
+    child = w1[:index] + w2[index:]
     return child
 
 def main():
+    # random.seed(SEED)
     curr_generation = init()
     X, labels = load_data()
 
@@ -116,13 +121,15 @@ def main():
         print('Round %d, Curr best performance is: %.2f' % (i + 1, eval(best, X, labels)))
 
     best = find_best(curr_generation, X, labels)
-    predict = np.dot(X, best)
-    for i in range(M):
-        temp = 0
-        if predict[i] > 0.0:
-            temp = 1
-        
-        print(temp, labels[i])
+    print(best)
+
+    # predict = np.dot(X, best)
+    # for i in range(M):
+    #     temp = 0
+    #     if predict[i] > 0.0:
+    #         temp = 1
+    #     
+    #     print(temp, labels[i])
 
     # for elem in curr_generation:
     #     evaluation = eval(elem, X, labels)
