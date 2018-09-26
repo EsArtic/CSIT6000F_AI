@@ -1,45 +1,44 @@
 #!/usr/bin/python
 
+import sys
 import numpy as np
 import random
 
 INITIAL = 2000  # Number of the first generation
 RANGE = 1       # Random range
 LOOP = 10       # Rounds of creating new generations
-N = 10          # Length of feature map + 1 (x1, ..., xn) + threshold
-M = 49          # Length of training set
+SCALE = 7       # Numbers of candidates in tournament selection
 
-SEED = 3
+# DATA_ROOT = './training-set.csv'
 
-DATA_ROOT = './training-set.csv'
 
 '''
-    randomly generate a value between -10.0 and 10.0
+    Randomly generate a value between -RANGE and RANGE
 '''
 def get_rand_weight():
     return random.uniform(-1.0 * RANGE, RANGE)
 
 '''
-    initialize the first generation programs
+    Initialize the first generation of programs
 '''
-def init():
+def init(N):
     population = []
     for i in range(INITIAL):
         curr = []
         for i in range(N):
-            # curr.append(random.random() * RANGE * random.randint(-1, 1))
             curr.append(get_rand_weight())
         population.append(curr)
 
     return population
 
 '''
-    load the training set from file
+    Load the training set from file
 '''
-def load_data():
+def load_data(DATA_ROOT):
     data_input = open(DATA_ROOT, 'r')
     X = []
     labels = []
+
     for line in data_input:
         items = line.strip().split(',')
         n = len(items)
@@ -50,90 +49,121 @@ def load_data():
         X.append(x)
         labels.append(int(items[n - 1]))
 
-    return X, labels
+    N = len(X[0]) # Length of feature map + 1 (x1, ..., xn) + threshold
+    data_input.close()
+    return X, labels, N
 
 '''
-    evaluate current program and return the score
+    Fitness function for the genetic program
+    Using numpy to accelerate the computation
 '''
-def eval(w, X, labels):
-    X = np.array(X)
+def fitness_func(w, X, labels):
+    inputs = np.array(X)
+    weights = np.array(w).reshape(len(w), 1)
+    predict = np.dot(inputs, weights)
 
-    w = np.array(w).reshape(N, 1)
-    predict = np.dot(X, w)
-
-    count = 0
-    for i in range(M):
+    correct_count = 0
+    for i in range(len(X)):
         temp = 0
-        if predict[i] > 0.0:
+        if predict[i] >= 0.0:
             temp = 1
         if temp == labels[i]:
-            count += 1
+            correct_count += 1
 
-    evaluation = float(count) / 49 * 100
+    evaluation = float(correct_count) / len(X) * 100
     return evaluation
 
-def find_best(curr_generation, X, labels):
-    best = curr_generation[0]
-    for elem in curr_generation:
-        if eval(elem, X, labels) > eval(best, X, labels):
-            best = elem
+'''
+    Find the best program among the given list
+'''
+def best(container, X, labels):
+    selected = container[0]
+    for elem in container:
+        if (fitness_func(elem, X, labels) > fitness_func(selected, X, labels)):
+            selected = elem
 
-    return best
+    return selected
 
 def tournament_selection(curr_generation, X, labels):
     candidates = []
-    for i in range(7):
+    for i in range(SCALE):
         candidates.append(curr_generation[random.randint(0, len(curr_generation) - 1)])
 
-    target = find_best(candidates, X, labels)
+    selected = best(candidates, X, labels)
+    return selected
 
-    return target
-
+'''
+    The crossover operation
+'''
 def crossover(w1, w2):
-    # child = w1[:5] + w2[5:]
-    index = random.randint(0, 10)
-    child = w1[:index] + w2[index:]
+    cut_off_point = random.randint(1, 9)
+    child = w1[:cut_off_point] + w2[cut_off_point:]
     return child
 
+def produce_next_generation(curr_generation, X, labels):
+    next_generation = []
+
+    # Copy 10% of the programs to next generation
+    while (len(next_generation) < len(curr_generation) / 10):
+        selected = tournament_selection(curr_generation, X, labels)
+        next_generation.append(selected)
+
+    # apply crossover operation to produce the rest 90% of the programs
+    while (len(next_generation) < len(curr_generation)):
+        father = tournament_selection(curr_generation, X, labels)
+        mother = tournament_selection(curr_generation, X, labels)
+        child = crossover(father, mother)
+        next_generation.append(child)
+
+    # randomly select 1% of the programs to do mutation operation
+    for i in range(int(len(curr_generation) / 100)):
+        selected = random.randint(0, len(next_generation) - 1)
+        position = random.randint(0, len(next_generation[selected]) - 1)
+        next_generation[selected][position] = get_rand_weight()
+
+    return next_generation
+
+def write_result(output_path, w, X, labels):
+    inputs = np.array(X)
+    weights = np.array(w).reshape(len(w), 1)
+    predict = np.dot(inputs, weights)
+
+    result = open(output_path, 'w')
+    for i in range(9):
+        result.write('x' + str(i + 1) + ',')
+    result.write('label,output\n')
+
+    for i in range(len(X)):
+        x = X[i]
+        for v in x[: len(x) - 1]:
+            result.write(str(v) + ',')
+        result.write(str(labels[i]) + ',')
+        if predict[i] > 0.0:
+            result.write('1\n')
+        else:
+            result.write('0\n')
+
+    result.close()
+
 def main():
-    # random.seed(SEED)
-    curr_generation = init()
-    X, labels = load_data()
+    DATA_ROOT = sys.argv[1]
+    X, labels, N = load_data(DATA_ROOT)
+    curr_generation = init(N)
 
-    total = len(curr_generation)
     for i in range(LOOP):
-        next_generation = []
-        while (len(next_generation) < (total / 10)):
-            selected = tournament_selection(curr_generation, X, labels)
-            next_generation.append(selected)
+        curr_generation = produce_next_generation(curr_generation, X, labels)
 
-        while (len(next_generation) < total):
-            father = tournament_selection(curr_generation, X, labels)
-            mother = tournament_selection(curr_generation, X, labels)
-            child = crossover(father, mother)
-            next_generation.append(child)
+        curr_best = best(curr_generation, X, labels)
+        accuracy = fitness_func(curr_best, X, labels)
+        print('Round %d, Current best performance is: Accuracy = %.2f' % (i + 1, accuracy))
+        if accuracy > 99:
+            print("The performance already meets the requirement, terminate the evolution.")
+            break
 
-        for j in range(int(total / 100)):
-            next_generation[random.randint(0, len(next_generation) - 1)][random.randint(0, N - 1)] = get_rand_weight()
-
-        curr_generation = next_generation
-        best = find_best(curr_generation, X, labels)
-        print('Round %d, Curr best performance is: %.2f' % (i + 1, eval(best, X, labels)))
-
-    best = find_best(curr_generation, X, labels)
-    print(best)
-
-    # predict = np.dot(X, best)
-    # for i in range(M):
-    #     temp = 0
-    #     if predict[i] > 0.0:
-    #         temp = 1
-    #     
-    #     print(temp, labels[i])
-
-    # for elem in curr_generation:
-    #     evaluation = eval(elem, X, labels)
-    #     print(evaluation)
+    final_best = best(curr_generation, X, labels)
+    print('Weights:', final_best)
+    print('Accuracy = %.2f' % fitness_func(final_best, X, labels))
+    write_result('./output.csv', final_best, X, labels)
 
 if __name__ == '__main__':
     main()

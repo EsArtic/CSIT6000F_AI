@@ -1,0 +1,1 @@
+python Genetic.py ./training-set.csv

@@ -5,7 +5,7 @@ import math
 
 N = 49
 M = 10
-LR = 0.1
+LR = 0.01
 INITIAL = [0]
 DATA_ROOT = './training-set.csv'
 
@@ -29,7 +29,7 @@ def modify_weights(predicts, labels, previous, X):
     diff = predicts - labels
     temp = np.dot(diff.T, X)
 
-    new_weight = previous - (LR * temp.T / M)
+    new_weight = previous - (LR * temp.T / N)
     return new_weight
 
 def main():
@@ -56,7 +56,7 @@ def main():
             RMSE = 0
             for item in diff:
                 RMSE += (float(item)) ** 2
-            print('Round %d, RMSE = %f' % (i, math.sqrt(RMSE / M)))
+            print('Round %d, RMSE = %f' % (i + 1, math.sqrt(RMSE / N)))
 
         weights = modify_weights(predict_y, labels, weights, X)
 
