@@ -1,3 +1,3 @@
 @echo off
-python Genetic.py ./training-set.csv
+python genetic.py ./training-set.csv ./output.csv
 pause

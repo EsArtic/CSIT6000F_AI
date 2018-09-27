@@ -9,9 +9,6 @@ RANGE = 1       # Random range
 LOOP = 10       # Rounds of creating new generations
 SCALE = 7       # Numbers of candidates in tournament selection
 
-# DATA_ROOT = './training-set.csv'
-
-
 '''
     Randomly generate a value between -RANGE and RANGE
 '''
@@ -146,7 +143,15 @@ def write_result(output_path, w, X, labels):
     result.close()
 
 def main():
-    DATA_ROOT = sys.argv[1]
+    DATA_ROOT = './training-set.csv'
+    OUTPUT_PATH = './output.csv'
+
+    if len(sys.argv) == 2:
+        DATA_ROOT = sys.argv[1]
+    elif len(sys.argv) == 3:
+        DATA_ROOT = sys.argv[1]
+        OUTPUT_PATH = sys.argv[2]
+
     X, labels, N = load_data(DATA_ROOT)
     curr_generation = init(N)
 
@@ -155,15 +160,15 @@ def main():
 
         curr_best = best(curr_generation, X, labels)
         accuracy = fitness_func(curr_best, X, labels)
-        print('Round %d, Current best performance is: Accuracy = %.2f' % (i + 1, accuracy))
-        if accuracy > 99:
-            print("The performance already meets the requirement, terminate the evolution.")
+        print('EPOCH %d, Current best accuracy = %.2f%%' % (i + 1, accuracy))
+        if accuracy >= 99.0:
+            print("The performance already meets requirement, terminate the evolution.")
             break
 
     final_best = best(curr_generation, X, labels)
-    print('Weights:', final_best)
-    print('Accuracy = %.2f' % fitness_func(final_best, X, labels))
-    write_result('./output.csv', final_best, X, labels)
+    print('Weights map =', final_best)
+    print('Accuracy = %.2f%%' % fitness_func(final_best, X, labels))
+    write_result(OUTPUT_PATH, final_best, X, labels)
 
 if __name__ == '__main__':
     main()
